@@ -1,4 +1,4 @@
-export default class EventEmitter {
+class DPEventEmitter {
   #events;
 
   constructor() {
@@ -59,4 +59,17 @@ export default class EventEmitter {
       listeners[i](...args);
     }
   }
+}
+
+
+// Conditional export as Universal Module
+if (typeof module !== 'undefined' && module.exports) {
+    // CommonJS (Node.js) export
+    module.exports = DPEventEmitter;
+} else if (typeof define === 'function' && define.amd) {
+    // AMD (RequireJS) export
+    define([], () => DPEventEmitter);
+} else if (typeof window !== 'undefined') {
+    // Browser global export
+    window.DPEventEmitter = DPEventEmitter;
 }

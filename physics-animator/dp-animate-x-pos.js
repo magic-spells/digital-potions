@@ -1,27 +1,36 @@
-import EventEmitter from './event-emitter';
+import EventEmitter from '../dp-event-emitter';
 
 let ranFPSTest = false;
 let averageAnimationInterval = false;
 let defaultFPSMultiplier = 1;
+
 
 /**
  * Events:
  * animationDidFinish: animation finished
  */
 
-export default class DPAnimateXPos {
+class DPAnimateXPos {
+
+		// Class constants
+		// 60 FPS in milliseconds
+    static IDEAL_FPS_INTERVAL = 16.66; 
+    // end animation when less than 0.2 pixels in movement
+    static FINISH_THRESHOLD = 0.20; 
+
+    // Private fiels
 		#carousel;
 		#element;
-		#isAnimating;
+		#isAnimating = false;
 		#targetX;
 		#currentX;
-		#velocity;
+		#velocity = 0;
 		#attraction;
 		#friction;
 		#frictionFactor;
 		#prevTime;
 		#animationIntervals;
-		#eventEmitter;
+		#eventEmitter = new EventEmitter();
 
 		/**
 		 * Creates an instance of DPAnimateXPos.
@@ -37,20 +46,15 @@ export default class DPAnimateXPos {
 				// settings
 				_.#carousel = carousel;
 				_.#element = element;
-				_.#isAnimating = false;
 
 				// positions
 				_.#targetX = startX;
 				_.#currentX = startX;
 
 				// physics
-				_.#velocity = 0;
 				_.#attraction = attraction;
 				_.#friction = friction;
 				_.#frictionFactor = 1 - friction;
-
-				// event emitter
-				_.#eventEmitter = new EventEmitter();
 
 				_.jumpToTarget();
 
@@ -81,7 +85,7 @@ export default class DPAnimateXPos {
 						// get average
 						const fpsAverage = total / _.#animationIntervals.length;
 						// compare to 60 FPS (16.66 ms interval)
-						defaultFPSMultiplier = fpsAverage / 16.66;
+						defaultFPSMultiplier = fpsAverage / IDEAL_FPS_INTERVAL;
 						_.#prevTime = null;
 						return;
 				}
@@ -156,15 +160,24 @@ export default class DPAnimateXPos {
 			// exit if we stopped animation
 			if (!_.#isAnimating) return;
 
-			const timeDelta = time - _.#prevTime;
+			// check to see if we have a current and previous time
+			// if we don't have these then there isn't a delta and we can't animate
+			if (time === undefined || _.#prevTime === undefined) {
+				// save time
+        _.#prevTime = time;
+        // wait for next frame
+        requestAnimationFrame(t => _.#animateToTarget(t));
+        return;
+	    }
 
-			// save previous time
+	    // calculate time delta
+	    const timeDelta = time - _.#prevTime;
+			// update previous time
 			_.#prevTime = time;
-			if (!time) _.#prevTime = performance.now();
 
 			// compare to 60 fps - 16.66 ms
 			if (timeDelta) {
-					fpsMultiplier = timeDelta / 16.66;
+				fpsMultiplier = timeDelta / IDEAL_FPS_INTERVAL;
 			}
 
 			// apply attraction
@@ -181,18 +194,8 @@ export default class DPAnimateXPos {
 			_.#element.style.transform = `translate3d(${_.#currentX}px,0,0)`;
 
 			// Stop after the wobble has settled
-			if (Math.abs(_.#currentX - _.#targetX) < 0.20) {
-					// stop the animation
-					_.#isAnimating = false;
-					// clear velocity
-					_.#velocity = 0;
-					_.#prevTime = null;
-					// set current position to target
-					_.#currentX = _.#targetX;
-					// set DOM element to target
-					_.#element.style.transform = `translateX(${_.#targetX}px)`;
-					// trigger animation did finish event for any event hooks
-					_.#eventEmitter.emit('animationDidFinish');
+			if (Math.abs(_.#currentX - _.#targetX) < _.FINISH_THRESHOLD) {
+					_.#finishAnimation();
 					return;
 			}
 
@@ -201,6 +204,21 @@ export default class DPAnimateXPos {
 
 			// tell browser to request another frame 
 			requestAnimationFrame(time => _.#animateToTarget(time));
+		}
+
+		#finishAnimation() {
+	    const _ = this;
+	    // stop the animation
+			_.#isAnimating = false;
+			// clear velocity
+			_.#velocity = 0;
+			_.#prevTime = null;
+			// set current position to target
+			_.#currentX = _.#targetX;
+			// set DOM element to target
+			_.#element.style.transform = `translateX(${_.#targetX}px)`;
+			// trigger animation did finish event for any event hooks
+			_.#eventEmitter.emit('animationDidFinish');
 		}
 
 		/**
@@ -262,4 +280,18 @@ export default class DPAnimateXPos {
 			this.#eventEmitter.off(eventName, eventFunction);
 		}
 
+}
+
+
+
+// Conditional export as Universal Module
+if (typeof module !== 'undefined' && module.exports) {
+    // CommonJS (Node.js) export
+    module.exports = DPAnimateXPos;
+} else if (typeof define === 'function' && define.amd) {
+    // AMD (RequireJS) export
+    define([], () => DPAnimateXPos);
+} else if (typeof window !== 'undefined') {
+    // Browser global export
+    window.DPAnimateXPos = DPAnimateXPos;
 }
