@@ -1,9 +1,9 @@
 /**
  * A class to calculate intermediate states (tweens) between keyframes for CSS properties.
  */
-class TweenCalculator {
+class DPTweenCalculator {
   /**
-   * Create a TweenCalculator.
+   * Create a DPTweenCalculator.
    * @param {Object[]} keyframes - Array of keyframe objects, each containing a percent and styles.
    */
   constructor(keyframes) {
@@ -266,9 +266,9 @@ class TweenCalculator {
 
 // Conditional export as ESM module
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = TweenCalculator;
+  module.exports = DPTweenCalculator;
 } else if (typeof define === 'function' && define.amd) {
-  define([], () => TweenCalculator);
+  define([], () => DPTweenCalculator);
 } else if (typeof window !== 'undefined') {
-  window.TweenCalculator = TweenCalculator;
+  window.DPTweenCalculator = DPTweenCalculator;
 }
