@@ -1,4 +1,9 @@
-// Improved getFocusableElements function
+/**
+ * Retrieves all focusable elements within a given container.
+ * 
+ * @param {HTMLElement} container - The container element to search for focusable elements.
+ * @returns {HTMLElement[]} An array of focusable elements found within the container.
+ */
 const getFocusableElements = (container) => {
   const focusableSelectors = 'summary, a[href], button:not(:disabled), [tabindex]:not([tabindex^="-"]):not(focus-trap-start):not(focus-trap-end), [draggable], area, input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled), object, iframe';
   return Array.from(container.querySelectorAll(focusableSelectors));
@@ -6,6 +11,7 @@ const getFocusableElements = (container) => {
 
 class FocusTrap extends HTMLElement {
 
+  /** @type {boolean} Indicates whether the styles have been injected into the DOM. */
   static styleInjected = false;
 
   constructor() {
@@ -13,12 +19,17 @@ class FocusTrap extends HTMLElement {
     this.trapStart = null;
     this.trapEnd = null;
 
+    // Inject styles only once, when the first FocusTrap instance is created.
     if (!FocusTrap.styleInjected) {
       this.injectStyles();
       FocusTrap.styleInjected = true;
     }
   }
 
+  /**
+   * Injects necessary styles for the focus trap into the document's head.
+   * This ensures that focus-trap-start and focus-trap-end elements are hidden.
+   */
   injectStyles() {
     const style = document.createElement('style');
     style.textContent = `
@@ -38,15 +49,27 @@ class FocusTrap extends HTMLElement {
     document.head.appendChild(style);
   }
 
+  /**
+   * Called when the element is connected to the DOM.
+   * Sets up the focus trap and adds the keydown event listener.
+   */
   connectedCallback() {
     this.setupTrap();
     this.addEventListener('keydown', this.handleKeyDown);
   }
 
+  /**
+   * Called when the element is disconnected from the DOM.
+   * Removes the keydown event listener.
+   */
   disconnectedCallback() {
     this.removeEventListener('keydown', this.handleKeyDown);
   }
 
+  /**
+   * Sets up the focus trap by adding trap start and trap end elements.
+   * Focuses the trap start element to initiate the focus trap.
+   */
   setupTrap() {
     const focusableElements = getFocusableElements(this);
     if (focusableElements.length === 0) return;
@@ -62,6 +85,11 @@ class FocusTrap extends HTMLElement {
     });
   }
 
+  /**
+   * Handles the keydown event. If the Escape key is pressed, the focus trap is exited.
+   * 
+   * @param {KeyboardEvent} e - The keyboard event object.
+   */
   handleKeyDown = (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -69,6 +97,10 @@ class FocusTrap extends HTMLElement {
     }
   }
 
+  /**
+   * Exits the focus trap by hiding the current container and shifting focus
+   * back to the trigger element that opened the trap.
+   */
   exitTrap() {
     const container = this.closest('[aria-hidden="false"]');
     if (!container) return;
@@ -84,15 +116,29 @@ class FocusTrap extends HTMLElement {
 }
 
 class FocusTrapStart extends HTMLElement {
+  /**
+   * Called when the element is connected to the DOM.
+   * Sets the tabindex and adds the focus event listener.
+   */
   connectedCallback() {
     this.setAttribute('tabindex', '0');
     this.addEventListener('focus', this.handleFocus);
   }
 
+  /**
+   * Called when the element is disconnected from the DOM.
+   * Removes the focus event listener.
+   */
   disconnectedCallback() {
     this.removeEventListener('focus', this.handleFocus);
   }
 
+  /**
+   * Handles the focus event. If focus moves backwards from the first focusable element,
+   * it is cycled to the last focusable element, and vice versa.
+   * 
+   * @param {FocusEvent} e - The focus event object.
+   */
   handleFocus = (e) => {
     const trap = this.closest('focus-trap');
     const focusableElements = getFocusableElements(trap);
@@ -111,15 +157,26 @@ class FocusTrapStart extends HTMLElement {
 }
 
 class FocusTrapEnd extends HTMLElement {
+  /**
+   * Called when the element is connected to the DOM.
+   * Sets the tabindex and adds the focus event listener.
+   */
   connectedCallback() {
     this.setAttribute('tabindex', '0');
     this.addEventListener('focus', this.handleFocus);
   }
 
+  /**
+   * Called when the element is disconnected from the DOM.
+   * Removes the focus event listener.
+   */
   disconnectedCallback() {
     this.removeEventListener('focus', this.handleFocus);
   }
 
+  /**
+   * Handles the focus event. When the trap end is focused, focus is shifted back to the trap start.
+   */
   handleFocus = () => {
     const trap = this.closest('focus-trap');
     const trapStart = trap.querySelector('focus-trap-start');
@@ -131,7 +188,12 @@ customElements.define('focus-trap', FocusTrap);
 customElements.define('focus-trap-start', FocusTrapStart);
 customElements.define('focus-trap-end', FocusTrapEnd);
 
-// Global keydown event listener (unchanged)
+/**
+ * Global keydown event listener.
+ * Listens for the Enter key to trigger focus trapping on the associated panel.
+ * 
+ * @param {KeyboardEvent} e - The keyboard event object.
+ */
 document.addEventListener('keydown', function(e) {
   if (e.key !== "Enter") return;
   const trigger = e.target.closest('[aria-controls]');
