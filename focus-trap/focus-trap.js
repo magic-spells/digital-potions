@@ -1,204 +1,154 @@
-
-document.addEventListener( 'keydown', function(e) {
-  
-  if (e.key != "Enter") return;
-  if (!e.target.closest('[aria-controls]')) return;
-  
-  e.preventDefault();
-
-  let trigger = e.target;
-  let panelId = trigger.getAttribute("aria-controls");
-  let panel = document.getElementById(panelId);
-  if (panel == undefined) return;
-  let trapStart = panel.querySelector('focus-trap-start')
-  if (trapStart == undefined) return;
-
-  trigger.setAttribute('aria-expanded', 'true')
-  panel.setAttribute('aria-hidden', 'false')
-
-  // Give DOM a moment to refactor itself
-  setTimeout(function(){
-    trapStart.focus()
-  }, 200)
-});
-
-
+// Improved getFocusableElements function
 const getFocusableElements = (container) => {
-  return Array.from(
-    container.querySelectorAll(
-      "summary, a[href], button:enabled, [tabindex]:not([tabindex^='-']):not(focus-trap-start):not(focus-trap-end), [draggable], area, input:not([type=hidden]):enabled, select:enabled, textarea:enabled, object, iframe"
-    )
-  )
+  const focusableSelectors = 'summary, a[href], button:not(:disabled), [tabindex]:not([tabindex^="-"]):not(focus-trap-start):not(focus-trap-end), [draggable], area, input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled), object, iframe';
+  return Array.from(container.querySelectorAll(focusableSelectors));
 }
-
 
 class FocusTrap extends HTMLElement {
 
+  static styleInjected = false;
+
   constructor() {
     super();
+    this.trapStart = null;
+    this.trapEnd = null;
 
-    if ( getFocusableElements(this).length == 0 ) return;
-    let focusTrapStart = document.createElement("focus-trap-start")
-    focusTrapStart.focus({preventScroll: true});
+    if (!FocusTrap.styleInjected) {
+      this.injectStyles();
+      FocusTrap.styleInjected = true;
+    }
+  }
 
-    this.prepend(focusTrapStart);
-    this.append(document.createElement("focus-trap-end"));
-
-    window.setTimeout(function (){
-      focusTrapStart.focus({preventScroll: true});
-    }, 5);
-
-    this.addEventListener( 'keydown', (e) => {
-      if (e.key == "Escape"){
-        e.preventDefault()
-        this.exitTrap()
+  injectStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+      focus-trap-start,
+      focus-trap-end {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        border: 0;
+        clip: rect(0, 0, 0, 0);
+        overflow: hidden;
+        white-space: nowrap;
       }
+    `;
+    document.head.appendChild(style);
+  }
+
+  connectedCallback() {
+    this.setupTrap();
+    this.addEventListener('keydown', this.handleKeyDown);
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener('keydown', this.handleKeyDown);
+  }
+
+  setupTrap() {
+    const focusableElements = getFocusableElements(this);
+    if (focusableElements.length === 0) return;
+
+    this.trapStart = document.createElement("focus-trap-start");
+    this.trapEnd = document.createElement("focus-trap-end");
+
+    this.prepend(this.trapStart);
+    this.append(this.trapEnd);
+
+    requestAnimationFrame(() => {
+      this.trapStart.focus();
     });
   }
 
+  handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.exitTrap();
+    }
+  }
+
   exitTrap() {
-    let container = this.closest('[aria-hidden=false]');
+    const container = this.closest('[aria-hidden="false"]');
+    if (!container) return;
 
-    if (container == undefined) return;
-
-    // Hide panel
     container.setAttribute('aria-hidden', 'true');
 
-    // Find original trigger button
-    let trigger = document.querySelector(`[aria-expanded="true"][aria-controls="${container.id}"]`);
-    if (!trigger) return;
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.focus();
+    const trigger = document.querySelector(`[aria-expanded="true"][aria-controls="${container.id}"]`);
+    if (trigger) {
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.focus();
+    }
   }
-
-
-  connectedCallback() {
-    // browser calls this method when the element is added to the document
-    // (can be called many times if an element is repeatedly added/removed)
-  }
-
-  disconnectedCallback() {
-    // browser calls this method when the element is removed from the document
-    // (can be called many times if an element is repeatedly added/removed)
-  }
-
-  static get observedAttributes() {
-    return [/* array of attribute names to monitor for changes */];
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    // called when one of attributes listed above is modified
-  }
-
-  adoptedCallback() {
-    // called when the element is moved to a new document
-    // (happens in document.adoptNode, very rarely used)
-  }
-
-  // there can be other element methods and properties
 }
 
-
- 
-
 class FocusTrapStart extends HTMLElement {
-  constructor() {
-    super();
-
-    // Make sure this is focusable
-    this.setAttribute('tabindex', 0);
-  
-    this.addEventListener( 'focus', (e) => {
-      let relatedElement = e.relatedTarget;
-      let trap = this.closest('focus-trap');
-      let focusableElements = getFocusableElements(trap);
-      
-      // No focusable elements in trap scope
-      if (focusableElements.length == 0) return;
-     
-      // If we are going in reverse, focus the last element
-      if ( relatedElement == focusableElements[0] ) {
-        focusableElements[ focusableElements.length - 1 ].focus();
-        return
-      }
-      
-      focusableElements[0].focus()
-    })
-
-
-  }
-
   connectedCallback() {
-    // browser calls this method when the element is added to the document
-    // (can be called many times if an element is repeatedly added/removed)
+    this.setAttribute('tabindex', '0');
+    this.addEventListener('focus', this.handleFocus);
   }
 
   disconnectedCallback() {
-    // browser calls this method when the element is removed from the document
-    // (can be called many times if an element is repeatedly added/removed)
+    this.removeEventListener('focus', this.handleFocus);
   }
 
-  static get observedAttributes() {
-    return [/* array of attribute names to monitor for changes */];
+  handleFocus = (e) => {
+    const trap = this.closest('focus-trap');
+    const focusableElements = getFocusableElements(trap);
+    
+    if (focusableElements.length === 0) return;
+    
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    
+    if (e.relatedTarget === firstElement) {
+      lastElement.focus();
+    } else {
+      firstElement.focus();
+    }
   }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    // called when one of attributes listed above is modified
-  }
-
-  adoptedCallback() {
-    // called when the element is moved to a new document
-    // (happens in document.adoptNode, very rarely used)
-  }
-
-  // there can be other element methods and properties
 }
 
 class FocusTrapEnd extends HTMLElement {
-  constructor() {
-    super();
-
-    // Make sure this is focusable
-    this.setAttribute('tabindex', 0);
-
-    this.addEventListener( 'focus', (e) => {
-        let trap = this.closest('focus-trap')
-        trap.querySelector('focus-trap-start').focus()
-      }
-    );
-    
-  }
-
-
   connectedCallback() {
-    // browser calls this method when the element is added to the document
-    // (can be called many times if an element is repeatedly added/removed)
+    this.setAttribute('tabindex', '0');
+    this.addEventListener('focus', this.handleFocus);
   }
 
   disconnectedCallback() {
-    // browser calls this method when the element is removed from the document
-    // (can be called many times if an element is repeatedly added/removed)
+    this.removeEventListener('focus', this.handleFocus);
   }
 
-  static get observedAttributes() {
-    return [/* array of attribute names to monitor for changes */];
+  handleFocus = () => {
+    const trap = this.closest('focus-trap');
+    const trapStart = trap.querySelector('focus-trap-start');
+    trapStart.focus();
   }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    // called when one of attributes listed above is modified
-  }
-
-  adoptedCallback() {
-    // called when the element is moved to a new document
-    // (happens in document.adoptNode, very rarely used)
-  }
-
-  // there can be other element methods and properties
 }
-
 
 customElements.define('focus-trap', FocusTrap);
 customElements.define('focus-trap-start', FocusTrapStart);
 customElements.define('focus-trap-end', FocusTrapEnd);
 
+// Global keydown event listener (unchanged)
+document.addEventListener('keydown', function(e) {
+  if (e.key !== "Enter") return;
+  const trigger = e.target.closest('[aria-controls]');
+  if (!trigger) return;
+  
+  e.preventDefault();
 
+  const panelId = trigger.getAttribute("aria-controls");
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const trapStart = panel.querySelector('focus-trap-start');
+  if (!trapStart) return;
+
+  trigger.setAttribute('aria-expanded', 'true');
+  panel.setAttribute('aria-hidden', 'false');
+
+  requestAnimationFrame(() => {
+    trapStart.focus();
+  });
+});
