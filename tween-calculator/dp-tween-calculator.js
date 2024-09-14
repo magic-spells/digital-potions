@@ -141,9 +141,13 @@ class DPTweenCalculator {
     // Interpolate functions that exist in both start and end
     const allFunctions = new Set([...Object.keys(startFunctions), ...Object.keys(endFunctions)]);
     for (const func of allFunctions) {
-      const start = startFunctions[func] || endFunctions[func];
-      const end = endFunctions[func] || startFunctions[func];
-      const interpolatedValue = _.interpolateValue(start.value, end.value, factor);
+      const start = startFunctions[func] || { value: 0, unit: '' };
+      const end = endFunctions[func] || { value: start.value, unit: start.unit };
+      
+      // Interpolate the numeric value
+      const interpolatedValue = _.interpolateValue(start.value, end.value, factor, true);
+
+      // Handle functions that might require specific formatting
       interpolatedFunctions.push(`${func}(${interpolatedValue}${start.unit || ''})`);
     }
 
@@ -161,9 +165,25 @@ class DPTweenCalculator {
     let match;
     while ((match = regex.exec(transform)) !== null) {
       const [, func, args] = match;
-      const value = parseFloat(args);
-      const unit = args.replace(value.toString(), '').trim();
-      functions[func] = { value, unit };
+      
+      // Handle multiple arguments, e.g., translateX(78.00px) translateY(50.00px)
+      const argParts = args.split(/\s*,\s*|\s+/).map(arg => {
+        const valueMatch = arg.match(/^(-?\d*\.?\d+)(\D*)$/);
+        if (valueMatch) {
+          return {
+            value: parseFloat(valueMatch[1]),
+            unit: valueMatch[2]
+          };
+        }
+        return { value: 0, unit: '' };
+      });
+
+      // For functions with multiple arguments, store them as an array
+      if (argParts.length > 1) {
+        functions[func] = argParts;
+      } else {
+        functions[func] = argParts[0];
+      }
     }
     return functions;
   }
@@ -173,9 +193,10 @@ class DPTweenCalculator {
    * @param {*} start - The starting value.
    * @param {*} end - The ending value.
    * @param {number} factor - The interpolation factor (0-1).
-   * @returns {*} The interpolated value.
+   * @param {boolean} isNumeric - Indicates if the values are numeric.
+   * @returns {*} The interpolated value of the property.
    */
-  interpolateValue(start, end, factor) {
+  interpolateValue(start, end, factor, isNumeric = false) {
     const _ = this;
 
     // Handle color interpolation
@@ -184,12 +205,26 @@ class DPTweenCalculator {
     }
 
     // Handle numeric values with units
+    if (typeof start === 'number' && typeof end === 'number') {
+      const interpolatedValue = start + (end - start) * factor;
+      // Format to avoid floating point precision issues
+      return parseFloat(interpolatedValue.toFixed(4)).toString();
+    }
+
+    // Handle numeric values with units
     const startParsed = _.parseValue(start);
     const endParsed = _.parseValue(end);
 
     if (startParsed && endParsed) {
       const interpolatedValue = startParsed.value + (endParsed.value - startParsed.value) * factor;
-      return `${interpolatedValue.toFixed(2)}${startParsed.unit || ''}`;
+      
+      // Ensure only valid numbers with up to two decimal points
+      let formattedValue = interpolatedValue.toFixed(2);
+      
+      // Remove trailing zeros and decimal if not needed
+      formattedValue = formattedValue.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+      
+      return `${formattedValue}${startParsed.unit || ''}`;
     }
 
     // For any other case, use discrete steps but ensure smooth transition
@@ -218,7 +253,7 @@ class DPTweenCalculator {
    * @returns {boolean} True if the value is a valid color, false otherwise.
    */
   isColor(value) {
-    return /^(#[0-9A-Fa-f]{6}|rgb\(.*\)|rgba\(.*\)|hsl\(.*\)|hsla\(.*\))$/.test(value);
+    return /^(#[0-9A-Fa-f]{6}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)|hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)|hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*[\d.]+\s*\))$/.test(value);
   }
 
   /**
@@ -258,8 +293,12 @@ class DPTweenCalculator {
         parseInt(color.slice(5, 7), 16)
       ];
     }
-    // For simplicity, we'll just return a default color for non-hex colors
-    // In a full implementation, you'd want to properly parse rgb, rgba, hsl, and hsla
+    const rgbMatch = color.match(/^rgb\s*\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)$/);
+    if (rgbMatch) {
+      return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+    }
+    // Extend this method to handle rgba, hsl, hsla as needed
+    // For simplicity, return black for unsupported formats
     return [0, 0, 0];
   }
 }
