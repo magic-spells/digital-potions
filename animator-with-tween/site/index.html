@@ -35,6 +35,30 @@
       border: 1px solid teal;
     }
 
+    #go {
+      margin: 10px;
+      padding: 16px 32px;
+      background: #2a2a5a;
+      color: white;
+      font-size: 16px;
+      appearance: none;
+      display: block;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #panel {
+      border-radius: 8px;
+      position: fixed;
+      right: 0px;
+      top: 0px;
+      height: calc(100svh - 20px);
+      margin: 10px;
+      width: 33%;
+      background: #343441;
+    }
+
 
   </style>
 
@@ -45,12 +69,13 @@
   <section id="section">
 
     <div id="box"></div>
+
+    <div id="panel"></div>
    
   </section>
 
-  <button id="stop">Stop</button>
 
-  <button id="go">go</button>
+  <button id="go">Go</button>
 
   <script src="./script.min.js"></script>
 

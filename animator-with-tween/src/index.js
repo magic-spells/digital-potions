@@ -6,55 +6,27 @@ import PhysicsAnimator from '../../physics-animator/dist/physics-animator.min'
 
 
 
-const animator = new PhysicsAnimator({ attraction: 0.01, friction: 0.05});
 
 
 const framesForward = [
   {
     percent: 0,
     styles: {
-      transform: 'translateX(0px)  rotate(0deg) scale(1.0)',
+      transform: 'translateX(0px) translateY(0px) rotate(0deg) scale(1.0)',
       backgroundColor: '#ff0000',
-      opacity: 1.0,
-      borderWidth: '1px'
+      borderWidth: '1px',
+      borderRadius: '0px',
+      filter: 'blur(15px)'
     }
   },
   {
     percent: 50,
     styles: {
-      transform: 'translateX(150px) rotate(-180deg) scale(0.5)',
-      backgroundColor: '#00ff00',
-      opacity: 0.1,
-      borderWidth: '50px'
-    }
-  },
-  {
-    percent: 80,
-    styles: {
-      transform: 'translateX(300px) rotate(180deg) scale(1.6)',
-      backgroundColor: '#0000ff',
-      opacity: 0.8,
-      borderWidth: '5px'
-    }
-  },
-  {
-    percent: 100,
-    styles: {
-      transform: 'translateX(500px) translateY(400px) rotate(-720deg) scale(2.0)',
-      backgroundColor: '#ff00ff',
-      opacity: 1,
-      borderWidth: '0px'
-    }
-  }
-];
-
-const framesForward2 = [
-  {
-    percent: 0,
-    styles: {
       transform: 'translateX(0px) translateY(0px) rotate(0deg) scale(1.0)',
       backgroundColor: '#ff0000',
-      borderWidth: '1px'
+      borderWidth: '1px',
+      borderRadius: '0px',
+      filter: 'blur(15px)'
     }
   },
   {
@@ -62,7 +34,9 @@ const framesForward2 = [
     styles: {
       transform: 'translateX(400px) translateY(400px) rotate(-360deg) scale(2.0)',
       backgroundColor: '#ff00ff',
-      borderWidth: '10px'
+      borderWidth: '10px',
+      borderRadius: '30px',
+      filter: 'blur(0px)'
     }
   }
 ];
@@ -74,7 +48,8 @@ const framesBack = [
     styles: {
       transform: 'translateX(400px)  translateY(400px) rotate(-720deg) scale(2.0)',
       backgroundColor: '#ff00ff',
-      borderWidth: '10px'
+      borderWidth: '10px',
+      borderRadius: '30px'
     }
   },
   {
@@ -82,34 +57,8 @@ const framesBack = [
     styles: {
       transform: 'translateX(50px)  translateY(50px) rotate(0deg) scale(0.5)',
       backgroundColor: '#f0f000',
-      borderWidth: '1px'
-    }
-  }
-];
-
-
-const frames2 = [
-   {
-    percent: 0,
-    styles: {
-      backgroundColor: '#ff00ff',
-      borderWidth: '0px'
-    }
-  },
-  {
-    percent: 50,
-    styles: {
-
-      backgroundColor: '#00ff00',
-      borderWidth: '5px'
-    }
-  },
-  {
-    percent: 100,
-    styles: {
-
-      backgroundColor: '#ff0000',
-      borderWidth: '10px'
+      borderWidth: '1px',
+      borderRadius: '0px'
     }
   }
 ];
@@ -118,12 +67,16 @@ const frames2 = [
 
 
 
-const tweenCalculator = new TweenCalculator(framesForward2);
+
+
+
+const animator = new PhysicsAnimator({ attraction: 0.01, friction: 0.03});
+
+const tweenCalculator = new TweenCalculator(framesForward);
 const box = document.getElementById('box')
 const go = document.getElementById('go')
 
 function updateView({ position, progress }) {
-  // console.log('\nprogress', progress)
   const tweenStyles = tweenCalculator.calculateTween(progress);
   // console.log(`tweenStyles ${progress}`, tweenStyles)
   applyTweenStyles(box, tweenStyles);
@@ -137,20 +90,63 @@ function applyTweenStyles(element, styles) {
 
 
 go.addEventListener('click', function (argument) {
-  tweenCalculator.setKeyframes(framesForward2) 
+  // change to original set of frames
+  tweenCalculator.setKeyframes(framesForward) 
   animator.animateTo(0, 500, 20, updateView)
     .then(() => {
-      console.log('finished')
-      tweenCalculator.setKeyframes(framesBack) 
+      // wait a moment and run again 
       setTimeout(() => {
+        // change to original set of frames
+        tweenCalculator.setKeyframes(framesBack) 
+
         animator.animateTo(0, 500, 50, updateView);
-      }, 1000)
+      }, 100)
       
     });
-
 
 })
 
 
+
+
+// panel
+
+const panelIn = [
+   {
+    percent: 0,
+    styles: {
+      transform: 'scale(0.8)',
+      filter: 'blur(5px) opacity(0)'
+
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'scale(1.0)',
+      filter: 'blur(0px) opacity(1)'
+    }
+  }
+];
+
+const panelAnimator = new PhysicsAnimator();
+
+const panel = document.getElementById('panel')
+const panelTween = new TweenCalculator(panelIn);
+
+console.log('panel', panel)
+
+function updatePanel ({ position, progress }) {
+  const tweenStyles = panelTween.calculateTween(progress);
+  // console.log(`update Panel ${progress}`, tweenStyles)
+  applyTweenStyles(panel, tweenStyles);
+}
+
+setTimeout(function(){
+  panelAnimator.animateTo(0, 500, 50, updatePanel)
+    .then(() => {
+      console.log('panel done')
+    })
+}, 1000)
 
 

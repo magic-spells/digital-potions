@@ -130,9 +130,52 @@ export default class TweenCalculator {
 
     if (prop === 'transform') {
       return this.interpolateTransform(startValue, endValue, factor);
+    } else if (prop === 'filter') {
+      return this.interpolateFilter(startValue, endValue, factor);
     }
 
     return this.interpolateValue(startValue, endValue, factor);
+  }
+
+  interpolateFilter(startFilter, endFilter, factor) {
+    const startFunctions = this.parseFilter(startFilter);
+    const endFunctions = this.parseFilter(endFilter);
+
+    const interpolatedFunctions = [];
+    const allFunctions = new Set([...Object.keys(startFunctions), ...Object.keys(endFunctions)]);
+
+    for (const func of allFunctions) {
+      const start = startFunctions[func] || { value: 0, unit: this.getDefaultFilterUnit(func) };
+      const end = endFunctions[func] || { value: start.value, unit: start.unit };
+      
+      const interpolatedValue = this.interpolateValue(start.value, end.value, factor);
+      interpolatedFunctions.push(`${func}(${interpolatedValue}${start.unit})`);
+    }
+
+    return interpolatedFunctions.join(' ');
+  }
+
+  parseFilter(filter) {
+    const functions = {};
+    const regex = /(\w+)\(([^)]+)\)/g;
+    let match;
+    while ((match = regex.exec(filter)) !== null) {
+      const [, func, arg] = match;
+      const { value, unit } = this.parseValue(arg);
+      functions[func] = { value, unit };
+    }
+    return functions;
+  }
+
+  getDefaultFilterUnit(func) {
+    switch (func) {
+      case 'blur':
+        return 'px';
+      case 'hue-rotate':
+        return 'deg';
+      default:
+        return '%';
+    }
   }
 
    interpolateTransform(startTransform, endTransform, factor) {
