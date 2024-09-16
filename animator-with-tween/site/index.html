@@ -27,8 +27,8 @@
 
     #box {
       position: absolute;
-      left: 100px;
-      top: 100px;
+      left: 0px;
+      top: 0px;
       background: red;
       height: 100px;
       width: 100px;
@@ -58,26 +58,29 @@
   <script>
 
     const animator = new PhysicsAnimator();
-    animator.setFriction(0.1)
-    animator.setAttraction(0.01)
+    animator.setFriction(0.12)
+    animator.setAttraction(0.02)
     const box = document.getElementById("box");
     const stop = document.getElementById("stop");
     const again = document.getElementById("again");
     let wentLeft = true;
 
     function updateValue({ position, progress }) {
+      // console.log('\nprogress', progress)
+      // console.log(`Current value: ${newValue}`);
+      // if (wentLeft) newValue *= -1;
 
-      box.style.transform = `translate3d(${position}px,${position}px,0) scale(${progress * 2})`;
+      box.style.transform = `translate3d(${position}px,${position}px,0) scale(${progress})`;
       
       // Do something with the new value, like updating a UI element
     }
 
     // Animate from 0 to 500
     animator
-      .animateTo(0, 400, 100, updateValue)
+      .animateTo(0, 500, 150, updateValue)
       .then(() => {
         console.log('finished')
-        animator.animateTo(400, 0, -100, updateValue);
+        animator.animateTo(500, 0, -150, updateValue);
       });
 
     // Later, animate from the current position to 200
@@ -90,9 +93,9 @@
 
     again.addEventListener('click', function(e){
       if (wentLeft){
-        animator.animateTo(400, 0, -100, updateValue);
+        animator.animateTo(500, 0, -150, updateValue);
       }else{
-        animator.animateTo(0, 400, 100, updateValue);
+        animator.animateTo(0, 500, 250, updateValue);
       }
       wentLeft = !wentLeft;
     })

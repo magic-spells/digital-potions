@@ -12,13 +12,13 @@ export default {
   output: [
     {
       file: 'dist/physics-animator.min.js',
-      format: 'umd',  
+      format: 'iife',  
       name: 'PhysicsAnimator',
       sourcemap: !isProd
     },
     {
       file: 'site/physics-animator.min.js',
-      format: 'umd',  
+      format: 'iife',  
       name: 'PhysicsAnimator',
       sourcemap: !isProd
     }

@@ -1,0 +1,145 @@
+
+
+<html>
+<head>
+
+
+  <title>Tween Calculator</title>
+
+  <meta name="viewport" 
+    content="width=device-width, initial-scale=1, user-scalable=no">
+
+  <style>   
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      padding: 0px; 
+      margin: 0px;
+    }
+
+    #section {
+      background: lightblue;
+      height: 300px;
+      width: 100%;
+    }
+
+    #box {
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      background: red;
+      height: 100px;
+      width: 100px;
+    }
+
+
+  </style>
+
+</head>
+
+<body>
+
+  <section id="section">
+
+    <div id="box"></div>
+   
+  </section>
+
+   <input id="slider" type="range" min="0" max="100" value="0" step="1">
+
+
+
+
+  <script src="./tween-calculator.min.js"></script>
+
+  <script>
+
+    const keyframes = [
+  {
+    percent: 0,
+    styles: {
+      transform: 'translateX(0px)  rotate(0deg) scale(1.0)',
+      backgroundColor: '#ff0000',
+      opacity: 1.0,
+      borderWidth: '1px'
+    }
+  },
+  {
+    percent: 50,
+    styles: {
+      transform: 'translateX(150px) rotate(-180deg) scale(0.5)',
+      backgroundColor: '#00ff00',
+      opacity: 0.1,
+      borderWidth: '50px'
+    }
+  },
+  {
+    percent: 80,
+    styles: {
+      transform: 'translateX(300px) rotate(180deg) scale(1.6)',
+      backgroundColor: '#0000ff',
+      opacity: 0.8,
+      borderWidth: '5px'
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'translateX(900px) rotate(-720deg) scale(1.0)',
+      backgroundColor: '#ff00ff',
+      opacity: 1,
+      borderWidth: '0px'
+    }
+  }
+];
+
+const keyframesBack = [
+   {
+    percent: 0,
+    styles: {
+      transform: 'translateX(900px) rotate(-720deg) scale(1.0)',
+      backgroundColor: '#ff00ff',
+      borderWidth: '0px'
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'translateX(0px) rotate(0deg) scale(1.0)',
+      backgroundColor: '#ff0000',
+      borderWidth: '1px'
+    }
+  }
+];
+
+
+
+
+    const tweenCalculator = new TweenCalculator(keyframesBack);
+
+    // Get the elements
+    const slider = document.getElementById('slider');
+    const box = document.getElementById('box');
+
+    function applyTweenStyles(element, styles) {
+      for (const [prop, value] of Object.entries(styles)) {
+        element.style[prop] = value;
+      }
+    }
+        
+    // Update the div styles based on slider position
+    slider.addEventListener('input', (event) => {
+      const position = parseInt(event.target.value)/ 100;
+      const tweenStyles = tweenCalculator.calculateTween(position);
+      console.log(`tweenStyles ${position}`, tweenStyles)
+      applyTweenStyles(box, tweenStyles);
+    });
+
+  
+
+  </script>
+
+</body>
+</html>

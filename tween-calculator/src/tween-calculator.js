@@ -1,14 +1,14 @@
 /**
  * A class to calculate intermediate states (tweens) between keyframes for CSS properties.
  */
-class DPTweenCalculator {
+export default class TweenCalculator {
   /**
-   * Create a DPTweenCalculator.
-   * @param {Object[]} keyframes - Array of keyframe objects, each containing a percent and styles.
+   * Create a TweenCalculator.
+   * @param {Object[]} keyframes - Array of keyframe objects, each containing a percent (0-100) and styles.
    */
   constructor(keyframes) {
     const _ = this;
-    _.keyframes = keyframes.sort((a, b) => a.percent - b.percent);
+    _.setKeyframes(keyframes);
     _.discreteProperties = [
       // Layout
       'display', 'position', 'float', 'clear', 'visibility', 'overflow', 'overflow-x', 'overflow-y',
@@ -47,19 +47,22 @@ class DPTweenCalculator {
   }
 
   /**
-   * Calculate the tween state at a given percentage.
-   * @param {number} position - The percentage (0-100) at which to calculate the tween.
+   * Calculate the tween state at a given normalized position.
+   * @param {number} position - The normalized position (0-1) at which to calculate the tween. Values outside 0-1 are allowed.
    * @returns {Object} An object containing the interpolated styles.
    */
   calculateTween(position) {
     const _ = this;
     const interpolatedStyles = {};
+    
+    // Normalize position to percentage (0-100)
+    const percent = position * 100;
 
     // Iterate through all properties across all keyframes
     const allProperties = new Set(_.keyframes.flatMap(kf => Object.keys(kf.styles)));
 
     for (const prop of allProperties) {
-      interpolatedStyles[prop] = _.interpolateProperty(prop, position);
+      interpolatedStyles[prop] = _.interpolateProperty(prop, percent);
     }
 
     return interpolatedStyles;
@@ -68,25 +71,35 @@ class DPTweenCalculator {
   /**
    * Interpolate a single property across all keyframes.
    * @param {string} prop - The name of the property to interpolate.
-   * @param {number} position - The position (0-100) at which to interpolate.
+   * @param {number} percent - The position (0-100) at which to interpolate.
    * @returns {*} The interpolated value of the property.
    */
-  interpolateProperty(prop, position) {
+  interpolateProperty(prop, percent) {
     const _ = this;
     
     if (_.discreteProperties.includes(prop)) {
-      return _.interpolateDiscreteProperty(prop, position);
+      return _.interpolateDiscreteProperty(prop, percent);
     }
 
     const relevantKeyframes = _.keyframes.filter(kf => prop in kf.styles);
     if (relevantKeyframes.length === 0) return null;
     if (relevantKeyframes.length === 1) return relevantKeyframes[0].styles[prop];
 
+    // Handle positions below the first keyframe
+    if (percent <= relevantKeyframes[0].percent) {
+      return relevantKeyframes[0].styles[prop];
+    }
+
+    // Handle positions above the last keyframe
+    if (percent >= relevantKeyframes[relevantKeyframes.length - 1].percent) {
+      return relevantKeyframes[relevantKeyframes.length - 1].styles[prop];
+    }
+
     // Find the two keyframes that surround the current position
     let startFrame = relevantKeyframes[0];
     let endFrame = relevantKeyframes[relevantKeyframes.length - 1];
     for (let i = 0; i < relevantKeyframes.length - 1; i++) {
-      if (position >= relevantKeyframes[i].percent && position <= relevantKeyframes[i + 1].percent) {
+      if (percent >= relevantKeyframes[i].percent && percent <= relevantKeyframes[i + 1].percent) {
         startFrame = relevantKeyframes[i];
         endFrame = relevantKeyframes[i + 1];
         break;
@@ -95,7 +108,7 @@ class DPTweenCalculator {
 
     const startValue = startFrame.styles[prop];
     const endValue = endFrame.styles[prop];
-    const factor = (position - startFrame.percent) / (endFrame.percent - startFrame.percent);
+    const factor = (percent - startFrame.percent) / (endFrame.percent - startFrame.percent);
 
     if (prop === 'transform') {
       return _.interpolateTransform(startValue, endValue, factor);
@@ -107,17 +120,17 @@ class DPTweenCalculator {
   /**
    * Interpolate discrete properties.
    * @param {string} prop - The name of the discrete property.
-   * @param {number} position - The position (0-100) at which to interpolate.
+   * @param {number} percent - The position (0-100) at which to interpolate.
    * @returns {*} The value of the discrete property at the given position.
    */
-  interpolateDiscreteProperty(prop, position) {
+  interpolateDiscreteProperty(prop, percent) {
     const _ = this;
     const relevantKeyframes = _.keyframes.filter(kf => prop in kf.styles);
     if (relevantKeyframes.length === 0) return null;
     
     // Find the last keyframe that's at or before the current position
     const activeKeyframe = relevantKeyframes.reduce((prev, curr) => 
-      (curr.percent <= position && curr.percent > prev.percent) ? curr : prev
+      (curr.percent <= percent && curr.percent > prev.percent) ? curr : prev
     );
 
     return activeKeyframe.styles[prop];
@@ -141,14 +154,22 @@ class DPTweenCalculator {
     // Interpolate functions that exist in both start and end
     const allFunctions = new Set([...Object.keys(startFunctions), ...Object.keys(endFunctions)]);
     for (const func of allFunctions) {
-      const start = startFunctions[func] || { value: 0, unit: '' };
+      const start = startFunctions[func] || (_.isNumericFunction(func) ? { value: 0, unit: 'px' } : { value: 0, unit: '' });
       const end = endFunctions[func] || { value: start.value, unit: start.unit };
       
-      // Interpolate the numeric value
-      const interpolatedValue = _.interpolateValue(start.value, end.value, factor, true);
-
-      // Handle functions that might require specific formatting
-      interpolatedFunctions.push(`${func}(${interpolatedValue}${start.unit || ''})`);
+      if (Array.isArray(start.value)) {
+        // Handle functions with multiple arguments
+        const interpolatedArgs = start.value.map((arg, index) => {
+          const endArg = (end.value[index] !== undefined) ? end.value[index] : { value: arg.value, unit: arg.unit };
+          const interpolatedValue = _.interpolateValue(arg.value, endArg.value, factor, true);
+          return `${interpolatedValue}${arg.unit || ''}`;
+        });
+        interpolatedFunctions.push(`${func}(${interpolatedArgs.join(', ')})`);
+      } else {
+        // Interpolate the numeric value
+        const interpolatedValue = _.interpolateValue(start.value, end.value, factor, true);
+        interpolatedFunctions.push(`${func}(${interpolatedValue}${start.unit || ''})`);
+      }
     }
 
     return interpolatedFunctions.join(' ');
@@ -204,7 +225,7 @@ class DPTweenCalculator {
       return _.interpolateColor(start, end, factor);
     }
 
-    // Handle numeric values with units
+    // Handle numeric values without units
     if (typeof start === 'number' && typeof end === 'number') {
       const interpolatedValue = start + (end - start) * factor;
       // Format to avoid floating point precision issues
@@ -215,7 +236,7 @@ class DPTweenCalculator {
     const startParsed = _.parseValue(start);
     const endParsed = _.parseValue(end);
 
-    if (startParsed && endParsed) {
+    if (startParsed && endParsed && startParsed.unit === endParsed.unit) {
       const interpolatedValue = startParsed.value + (endParsed.value - startParsed.value) * factor;
       
       // Ensure only valid numbers with up to two decimal points
@@ -276,7 +297,7 @@ class DPTweenCalculator {
     const b = Math.round(startRGB[2] + factor * (endRGB[2] - startRGB[2]));
 
     // Convert back to hex
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
   }
 
   /**
@@ -297,17 +318,88 @@ class DPTweenCalculator {
     if (rgbMatch) {
       return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
     }
-    // Extend this method to handle rgba, hsl, hsla as needed
-    // For simplicity, return black for unsupported formats
+    const rgbaMatch = color.match(/^rgba\s*\(\s*(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\s*\)$/);
+    if (rgbaMatch) {
+      return [parseInt(rgbaMatch[1]), parseInt(rgbaMatch[2]), parseInt(rgbaMatch[3])];
+    }
+    const hslMatch = color.match(/^hsl\s*\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$/);
+    if (hslMatch) {
+      // Convert HSL to RGB
+      return _.hslToRGB(color);
+    }
+    const hslaMatch = color.match(/^hsla\s*\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*[\d.]+\s*\)$/);
+    if (hslaMatch) {
+      // Convert HSL to RGB (ignoring alpha)
+      return _.hslToRGB(color);
+    }
+    // Unsupported format; default to black
     return [0, 0, 0];
   }
-}
 
-// Conditional export as ESM module
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = DPTweenCalculator;
-} else if (typeof define === 'function' && define.amd) {
-  define([], () => DPTweenCalculator);
-} else if (typeof window !== 'undefined') {
-  window.DPTweenCalculator = DPTweenCalculator;
+  /**
+   * Convert an HSL color to RGB.
+   * @param {string} hsl - The HSL color string.
+   * @returns {number[]} An array of RGB values.
+   */
+  hslToRGB(hsl) {
+    const _ = this;
+    const hslMatch = hsl.match(/^hsl[a]?\(\s*(\d+),\s*(\d+)%?,\s*(\d+)%?\s*\)$/);
+    if (!hslMatch) return [0, 0, 0];
+
+    let h = parseInt(hslMatch[1], 10);
+    let s = parseInt(hslMatch[2], 10) / 100;
+    let l = parseInt(hslMatch[3], 10) / 100;
+
+    h = h % 360;
+    if (h < 0) h += 360;
+
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+
+    let r1, g1, b1;
+    if (0 <= h && h < 60) {
+      [r1, g1, b1] = [c, x, 0];
+    } else if (60 <= h && h < 120) {
+      [r1, g1, b1] = [x, c, 0];
+    } else if (120 <= h && h < 180) {
+      [r1, g1, b1] = [0, c, x];
+    } else if (180 <= h && h < 240) {
+      [r1, g1, b1] = [0, x, c];
+    } else if (240 <= h && h < 300) {
+      [r1, g1, b1] = [x, 0, c];
+    } else {
+      [r1, g1, b1] = [c, 0, x];
+    }
+
+    const r = Math.round((r1 + m) * 255);
+    const g = Math.round((g1 + m) * 255);
+    const b = Math.round((b1 + m) * 255);
+
+    return [r, g, b];
+  }
+
+  /**
+   * Update the keyframes.
+   * @param {Object[]} keyframes - Array of keyframe objects, each containing a percent and styles.
+   */
+  setKeyframes(keyframes){
+    this.keyframes = keyframes.sort((a, b) => a.percent - b.percent);
+  }
+
+  /**
+   * Determine if a transform function should be treated as numeric.
+   * @param {string} func - The transform function name.
+   * @returns {boolean} True if the function is numeric, false otherwise.
+   */
+  isNumericFunction(func) {
+    const numericTransforms = [
+      'translate', 'translateX', 'translateY', 'translateZ',
+      'scale', 'scaleX', 'scaleY', 'scaleZ',
+      'rotate', 'rotateX', 'rotateY', 'rotateZ',
+      'skew', 'skewX', 'skewY',
+      'perspective'
+    ];
+    return numericTransforms.includes(func);
+  }
 }
