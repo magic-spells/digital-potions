@@ -47,7 +47,7 @@
    
   </section>
 
-   <input id="slider" type="range" min="0" max="100" value="0" step="1">
+   <input id="slider" type="range" min="0" max="110" value="0" step="1">
 
 
 
@@ -114,10 +114,28 @@ const keyframesBack = [
   }
 ];
 
+const frames2 = [
+   {
+    percent: 0,
+    styles: {
+      transform: 'translateX(0px) rotate(-720deg) scale(1.0)',
+      backgroundColor: '#ff00ff',
+      borderWidth: '0px'
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'translateX(400px) rotate(0deg) scale(1.0)',
+      backgroundColor: '#ff0000',
+      borderWidth: '10px'
+    }
+  }
+];
 
 
 
-    const tweenCalculator = new TweenCalculator(keyframesBack);
+    const tweenCalculator = new TweenCalculator(frames2);
 
     // Get the elements
     const slider = document.getElementById('slider');

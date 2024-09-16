@@ -8,16 +8,10 @@ const isProd = process.env.NODE_ENV === 'production';
 
 
 export default {
-  input: 'src/physics-animator.js',
+  input: 'src/index.js',
   output: [
     {
-      file: 'dist/physics-animator.min.js',
-      format: 'iife',  
-      name: 'PhysicsAnimator',
-      sourcemap: !isProd
-    },
-    {
-      file: 'site/physics-animator.min.js',
+      file: 'site/script.min.js',
       format: 'iife',  
       name: 'PhysicsAnimator',
       sourcemap: !isProd
@@ -35,7 +29,7 @@ export default {
     serve({
       open: true,
       contentBase: 'site', // The folder to serve files from
-      port: 3008,
+      port: 3010,
     }),
     !isProd && livereload({
       watch: 'site', // The folder to watch for changes

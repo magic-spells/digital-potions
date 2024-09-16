@@ -7,9 +7,8 @@ export default class TweenCalculator {
    * @param {Object[]} keyframes - Array of keyframe objects, each containing a percent (0-100) and styles.
    */
   constructor(keyframes) {
-    const _ = this;
-    _.setKeyframes(keyframes);
-    _.discreteProperties = [
+    this.setKeyframes(keyframes);
+    this.discreteProperties = [
       // Layout
       'display', 'position', 'float', 'clear', 'visibility', 'overflow', 'overflow-x', 'overflow-y',
       
@@ -52,17 +51,16 @@ export default class TweenCalculator {
    * @returns {Object} An object containing the interpolated styles.
    */
   calculateTween(position) {
-    const _ = this;
     const interpolatedStyles = {};
     
     // Normalize position to percentage (0-100)
     const percent = position * 100;
 
     // Iterate through all properties across all keyframes
-    const allProperties = new Set(_.keyframes.flatMap(kf => Object.keys(kf.styles)));
+    const allProperties = new Set(this.keyframes.flatMap(kf => Object.keys(kf.styles)));
 
     for (const prop of allProperties) {
-      interpolatedStyles[prop] = _.interpolateProperty(prop, percent);
+      interpolatedStyles[prop] = this.interpolateProperty(prop, percent);
     }
 
     return interpolatedStyles;
@@ -70,32 +68,54 @@ export default class TweenCalculator {
 
   /**
    * Interpolate a single property across all keyframes.
+   * Supports extrapolation beyond the first and last keyframes.
    * @param {string} prop - The name of the property to interpolate.
    * @param {number} percent - The position (0-100) at which to interpolate.
    * @returns {*} The interpolated value of the property.
    */
   interpolateProperty(prop, percent) {
-    const _ = this;
-    
-    if (_.discreteProperties.includes(prop)) {
-      return _.interpolateDiscreteProperty(prop, percent);
+    if (this.discreteProperties.includes(prop)) {
+      return this.interpolateDiscreteProperty(prop, percent);
     }
 
-    const relevantKeyframes = _.keyframes.filter(kf => prop in kf.styles);
+    const relevantKeyframes = this.keyframes.filter(kf => prop in kf.styles);
     if (relevantKeyframes.length === 0) return null;
     if (relevantKeyframes.length === 1) return relevantKeyframes[0].styles[prop];
 
-    // Handle positions below the first keyframe
-    if (percent <= relevantKeyframes[0].percent) {
-      return relevantKeyframes[0].styles[prop];
+    // Extrapolation Below First Keyframe
+    if (percent < relevantKeyframes[0].percent) {
+      const startFrame = relevantKeyframes[0];
+      const endFrame = relevantKeyframes[1] || relevantKeyframes[0];
+      const factor = (percent - startFrame.percent) / (endFrame.percent - startFrame.percent);
+
+      const startValue = startFrame.styles[prop];
+      const endValue = endFrame.styles[prop];
+
+      if (prop === 'transform') {
+        return this.extrapolateTransform(startValue, endValue, factor, 'below');
+      }
+
+      return this.extrapolateValue(startValue, endValue, factor, 'below');
     }
 
-    // Handle positions above the last keyframe
-    if (percent >= relevantKeyframes[relevantKeyframes.length - 1].percent) {
-      return relevantKeyframes[relevantKeyframes.length - 1].styles[prop];
+    // Extrapolation Above Last Keyframe
+    if (percent > relevantKeyframes[relevantKeyframes.length - 1].percent) {
+      const last = relevantKeyframes.length - 1;
+      const startFrame = relevantKeyframes[last - 1] || relevantKeyframes[last];
+      const endFrame = relevantKeyframes[last];
+      const factor = (percent - endFrame.percent) / (endFrame.percent - startFrame.percent);
+
+      const startValue = startFrame.styles[prop];
+      const endValue = endFrame.styles[prop];
+
+      if (prop === 'transform') {
+        return this.extrapolateTransform(startValue, endValue, factor, 'above');
+      }
+
+      return this.extrapolateValue(startValue, endValue, factor, 'above');
     }
 
-    // Find the two keyframes that surround the current position
+    // Interpolation Between Keyframes
     let startFrame = relevantKeyframes[0];
     let endFrame = relevantKeyframes[relevantKeyframes.length - 1];
     for (let i = 0; i < relevantKeyframes.length - 1; i++) {
@@ -111,21 +131,99 @@ export default class TweenCalculator {
     const factor = (percent - startFrame.percent) / (endFrame.percent - startFrame.percent);
 
     if (prop === 'transform') {
-      return _.interpolateTransform(startValue, endValue, factor);
+      return this.interpolateTransform(startValue, endValue, factor);
     }
 
-    return _.interpolateValue(startValue, endValue, factor);
+    return this.interpolateValue(startValue, endValue, factor);
+  }
+
+  /**
+   * Extrapolate a single value beyond the keyframes.
+   * @param {*} start - The starting value.
+   * @param {*} end - The ending value.
+   * @param {number} factor - The extrapolation factor.
+   * @param {string} direction - 'above' or 'below' to indicate extrapolation direction.
+   * @returns {*} The extrapolated value.
+   */
+  extrapolateValue(start, end, factor, direction) {
+    if (direction === 'above') {
+      // Extrapolate above the last keyframe
+      return this.interpolateValue(end, end + (end - start) * factor, factor, true);
+    } else if (direction === 'below') {
+      // Extrapolate below the first keyframe
+      return this.interpolateValue(start, start + (start - end) * factor, factor, true);
+    }
+    return null;
+  }
+
+  /**
+   * Extrapolate a transform string beyond the keyframes.
+   * @param {string} startTransform - The starting transform value.
+   * @param {string} endTransform - The ending transform value.
+   * @param {number} factor - The extrapolation factor.
+   * @param {string} direction - 'above' or 'below' to indicate extrapolation direction.
+   * @returns {string} The extrapolated transform value.
+   */
+  extrapolateTransform(startTransform, endTransform, factor, direction) {
+    const startFunctions = this.parseTransform(startTransform);
+    const endFunctions = this.parseTransform(endTransform);
+
+    const interpolatedFunctions = [];
+
+    // Determine delta for each function
+    const allFunctions = new Set([...Object.keys(startFunctions), ...Object.keys(endFunctions)]);
+    for (const func of allFunctions) {
+      const start = startFunctions[func] || (this.isNumericFunction(func) ? { value: 0, unit: 'px' } : { value: 0, unit: '' });
+      const end = endFunctions[func] || { value: start.value, unit: start.unit };
+
+      if (Array.isArray(start.value)) {
+        // Handle functions with multiple arguments
+        const interpolatedArgs = start.value.map((arg, index) => {
+          const endArg = end.value[index] || { value: arg.value, unit: arg.unit };
+          let extrapolated = arg.value;
+          if (direction === 'above') {
+            extrapolated += (endArg.value - arg.value) * factor;
+          } else if (direction === 'below') {
+            extrapolated += (arg.value - endArg.value) * factor;
+          }
+          return `${this.formatNumber(extrapolated)}${arg.unit || ''}`;
+        });
+        interpolatedFunctions.push(`${func}(${interpolatedArgs.join(', ')})`);
+      } else {
+        // Handle single-argument functions
+        let extrapolated = end.value;
+        if (direction === 'above') {
+          extrapolated += (end.value - start.value) * factor;
+        } else if (direction === 'below') {
+          extrapolated += (start.value - end.value) * factor;
+        }
+        interpolatedFunctions.push(`${func}(${this.formatNumber(extrapolated)}${start.unit || ''})`);
+      }
+    }
+
+    return interpolatedFunctions.join(' ');
+  }
+
+  /**
+   * Format a number to remove unnecessary decimal places.
+   * @param {number} num - The number to format.
+   * @returns {string} The formatted number as a string.
+   */
+  formatNumber(num) {
+    console.log('num', num)
+    num = parseFloat(num)
+    return parseFloat(num.toFixed(4)).toString();
   }
 
   /**
    * Interpolate discrete properties.
+   * Currently, discrete properties are not extrapolated.
    * @param {string} prop - The name of the discrete property.
    * @param {number} percent - The position (0-100) at which to interpolate.
    * @returns {*} The value of the discrete property at the given position.
    */
   interpolateDiscreteProperty(prop, percent) {
-    const _ = this;
-    const relevantKeyframes = _.keyframes.filter(kf => prop in kf.styles);
+    const relevantKeyframes = this.keyframes.filter(kf => prop in kf.styles);
     if (relevantKeyframes.length === 0) return null;
     
     // Find the last keyframe that's at or before the current position
@@ -136,7 +234,6 @@ export default class TweenCalculator {
     return activeKeyframe.styles[prop];
   }
 
-
   /**
    * Interpolate between two transform values.
    * @param {string} startTransform - The starting transform value.
@@ -145,30 +242,29 @@ export default class TweenCalculator {
    * @returns {string} The interpolated transform value.
    */
   interpolateTransform(startTransform, endTransform, factor) {
-    const _ = this;
-    const startFunctions = _.parseTransform(startTransform);
-    const endFunctions = _.parseTransform(endTransform);
+    const startFunctions = this.parseTransform(startTransform);
+    const endFunctions = this.parseTransform(endTransform);
 
     const interpolatedFunctions = [];
 
     // Interpolate functions that exist in both start and end
     const allFunctions = new Set([...Object.keys(startFunctions), ...Object.keys(endFunctions)]);
     for (const func of allFunctions) {
-      const start = startFunctions[func] || (_.isNumericFunction(func) ? { value: 0, unit: 'px' } : { value: 0, unit: '' });
+      const start = startFunctions[func] || (this.isNumericFunction(func) ? { value: 0, unit: 'px' } : { value: 0, unit: '' });
       const end = endFunctions[func] || { value: start.value, unit: start.unit };
-      
+
       if (Array.isArray(start.value)) {
         // Handle functions with multiple arguments
         const interpolatedArgs = start.value.map((arg, index) => {
-          const endArg = (end.value[index] !== undefined) ? end.value[index] : { value: arg.value, unit: arg.unit };
-          const interpolatedValue = _.interpolateValue(arg.value, endArg.value, factor, true);
-          return `${interpolatedValue}${arg.unit || ''}`;
+          const endArg = end.value[index] || { value: arg.value, unit: arg.unit };
+          const interpolatedValue = this.interpolateValue(arg.value, endArg.value, factor, true);
+          return `${this.formatNumber(interpolatedValue)}${arg.unit || ''}`;
         });
         interpolatedFunctions.push(`${func}(${interpolatedArgs.join(', ')})`);
       } else {
         // Interpolate the numeric value
-        const interpolatedValue = _.interpolateValue(start.value, end.value, factor, true);
-        interpolatedFunctions.push(`${func}(${interpolatedValue}${start.unit || ''})`);
+        const interpolatedValue = this.interpolateValue(start.value, end.value, factor, true);
+        interpolatedFunctions.push(`${func}(${this.formatNumber(interpolatedValue)}${start.unit || ''})`);
       }
     }
 
@@ -187,7 +283,7 @@ export default class TweenCalculator {
     while ((match = regex.exec(transform)) !== null) {
       const [, func, args] = match;
       
-      // Handle multiple arguments, e.g., translateX(78.00px) translateY(50.00px)
+      // Handle multiple arguments, e.g., translate(78px, 50px)
       const argParts = args.split(/\s*,\s*|\s+/).map(arg => {
         const valueMatch = arg.match(/^(-?\d*\.?\d+)(\D*)$/);
         if (valueMatch) {
@@ -211,30 +307,29 @@ export default class TweenCalculator {
 
   /**
    * Interpolate between two values.
+   * Supports extrapolation beyond keyframes.
    * @param {*} start - The starting value.
    * @param {*} end - The ending value.
-   * @param {number} factor - The interpolation factor (0-1).
+   * @param {number} factor - The interpolation factor (can be <0 or >1 for extrapolation).
    * @param {boolean} isNumeric - Indicates if the values are numeric.
    * @returns {*} The interpolated value of the property.
    */
   interpolateValue(start, end, factor, isNumeric = false) {
-    const _ = this;
-
     // Handle color interpolation
-    if (_.isColor(start) && _.isColor(end)) {
-      return _.interpolateColor(start, end, factor);
+    if (this.isColor(start) && this.isColor(end)) {
+      return this.interpolateColor(start, end, factor);
     }
 
     // Handle numeric values without units
     if (typeof start === 'number' && typeof end === 'number') {
       const interpolatedValue = start + (end - start) * factor;
       // Format to avoid floating point precision issues
-      return parseFloat(interpolatedValue.toFixed(4)).toString();
+      return this.formatNumber(interpolatedValue);
     }
 
     // Handle numeric values with units
-    const startParsed = _.parseValue(start);
-    const endParsed = _.parseValue(end);
+    const startParsed = this.parseValue(start);
+    const endParsed = this.parseValue(end);
 
     if (startParsed && endParsed && startParsed.unit === endParsed.unit) {
       const interpolatedValue = startParsed.value + (endParsed.value - startParsed.value) * factor;
@@ -281,23 +376,23 @@ export default class TweenCalculator {
    * Interpolate between two colors.
    * @param {string} start - The starting color.
    * @param {string} end - The ending color.
-   * @param {number} factor - The interpolation factor (0-1).
+   * @param {number} factor - The interpolation factor (can be <0 or >1 for extrapolation).
    * @returns {string} The interpolated color.
    */
   interpolateColor(start, end, factor) {
-    const _ = this;
-    
     // Convert both colors to RGB
-    const startRGB = _.colorToRGB(start);
-    const endRGB = _.colorToRGB(end);
+    const startRGB = this.colorToRGB(start);
+    const endRGB = this.colorToRGB(end);
 
     // Interpolate each channel
-    const r = Math.round(startRGB[0] + factor * (endRGB[0] - startRGB[0]));
-    const g = Math.round(startRGB[1] + factor * (endRGB[1] - startRGB[1]));
-    const b = Math.round(startRGB[2] + factor * (endRGB[2] - startRGB[2]));
+    const r = Math.round(startRGB[0] + (endRGB[0] - startRGB[0]) * factor);
+    const g = Math.round(startRGB[1] + (endRGB[1] - startRGB[1]) * factor);
+    const b = Math.round(startRGB[2] + (endRGB[2] - startRGB[2]) * factor);
 
-    // Convert back to hex
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+    // Clamp values between 0 and 255
+    const clamp = (val) => Math.max(0, Math.min(255, val));
+
+    return `#${((1 << 24) + (clamp(r) << 16) + (clamp(g) << 8) + clamp(b)).toString(16).slice(1).toUpperCase()}`;
   }
 
   /**
@@ -306,7 +401,6 @@ export default class TweenCalculator {
    * @returns {number[]} An array of RGB values.
    */
   colorToRGB(color) {
-    const _ = this;
     if (color.startsWith('#')) {
       return [
         parseInt(color.slice(1, 3), 16),
@@ -316,21 +410,21 @@ export default class TweenCalculator {
     }
     const rgbMatch = color.match(/^rgb\s*\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)$/);
     if (rgbMatch) {
-      return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+      return [parseInt(rgbMatch[1], 10), parseInt(rgbMatch[2], 10), parseInt(rgbMatch[3], 10)];
     }
     const rgbaMatch = color.match(/^rgba\s*\(\s*(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\s*\)$/);
     if (rgbaMatch) {
-      return [parseInt(rgbaMatch[1]), parseInt(rgbaMatch[2]), parseInt(rgbaMatch[3])];
+      return [parseInt(rgbaMatch[1], 10), parseInt(rgbaMatch[2], 10), parseInt(rgbaMatch[3], 10)];
     }
-    const hslMatch = color.match(/^hsl\s*\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$/);
+    const hslMatch = color.match(/^hsl\s*\(\s*(\d+),\s*(\d+)%?,\s*(\d+)%?\s*\)$/);
     if (hslMatch) {
       // Convert HSL to RGB
-      return _.hslToRGB(color);
+      return this.hslToRGB(color);
     }
-    const hslaMatch = color.match(/^hsla\s*\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*[\d.]+\s*\)$/);
+    const hslaMatch = color.match(/^hsla\s*\(\s*(\d+),\s*(\d+)%?,\s*(\d+)%?,\s*[\d.]+\s*\)$/);
     if (hslaMatch) {
       // Convert HSL to RGB (ignoring alpha)
-      return _.hslToRGB(color);
+      return this.hslToRGB(color);
     }
     // Unsupported format; default to black
     return [0, 0, 0];
@@ -342,7 +436,6 @@ export default class TweenCalculator {
    * @returns {number[]} An array of RGB values.
    */
   hslToRGB(hsl) {
-    const _ = this;
     const hslMatch = hsl.match(/^hsl[a]?\(\s*(\d+),\s*(\d+)%?,\s*(\d+)%?\s*\)$/);
     if (!hslMatch) return [0, 0, 0];
 
@@ -401,5 +494,24 @@ export default class TweenCalculator {
       'perspective'
     ];
     return numericTransforms.includes(func);
+  }
+
+  /**
+   * Interpolate discrete properties.
+   * Currently, discrete properties are not extrapolated.
+   * @param {string} prop - The name of the discrete property.
+   * @param {number} percent - The position (0-100) at which to interpolate.
+   * @returns {*} The value of the discrete property at the given position.
+   */
+  interpolateDiscreteProperty(prop, percent) {
+    const relevantKeyframes = this.keyframes.filter(kf => prop in kf.styles);
+    if (relevantKeyframes.length === 0) return null;
+    
+    // Find the last keyframe that's at or before the current position
+    const activeKeyframe = relevantKeyframes.reduce((prev, curr) => 
+      (curr.percent <= percent && curr.percent > prev.percent) ? curr : prev
+    );
+
+    return activeKeyframe.styles[prop];
   }
 }

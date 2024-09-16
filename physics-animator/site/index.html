@@ -32,6 +32,7 @@
       background: red;
       height: 100px;
       width: 100px;
+      
     }
 
 
@@ -57,9 +58,9 @@
 
   <script>
 
-    const animator = new PhysicsAnimator();
-    animator.setFriction(0.1)
-    animator.setAttraction(0.01)
+    const animator = new PhysicsAnimator({ attraction: 0.01, friction: 0.1});
+    // animator.setFriction(0.1)
+    // animator.setAttraction(0.01)
     const box = document.getElementById("box");
     const stop = document.getElementById("stop");
     const again = document.getElementById("again");

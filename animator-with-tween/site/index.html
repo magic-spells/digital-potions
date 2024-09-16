@@ -4,7 +4,7 @@
 <head>
 
 
-  <title>Physic Animator test</title>
+  <title>Animator & Tween</title>
 
   <meta name="viewport" 
     content="width=device-width, initial-scale=1, user-scalable=no">
@@ -32,6 +32,7 @@
       background: red;
       height: 100px;
       width: 100px;
+      border: 1px solid teal;
     }
 
 
@@ -49,59 +50,10 @@
 
   <button id="stop">Stop</button>
 
-  <button id="again">Again</button>
+  <button id="go">go</button>
 
+  <script src="./script.min.js"></script>
 
-
-  <script src="./physics-animator.min.js"></script>
-
-  <script>
-
-    const animator = new PhysicsAnimator();
-    animator.setFriction(0.12)
-    animator.setAttraction(0.02)
-    const box = document.getElementById("box");
-    const stop = document.getElementById("stop");
-    const again = document.getElementById("again");
-    let wentLeft = true;
-
-    function updateValue({ position, progress }) {
-      // console.log('\nprogress', progress)
-      // console.log(`Current value: ${newValue}`);
-      // if (wentLeft) newValue *= -1;
-
-      box.style.transform = `translate3d(${position}px,${position}px,0) scale(${progress})`;
-      
-      // Do something with the new value, like updating a UI element
-    }
-
-    // Animate from 0 to 500
-    animator
-      .animateTo(0, 500, 150, updateValue)
-      .then(() => {
-        console.log('finished')
-        animator.animateTo(500, 0, -150, updateValue);
-      });
-
-    // Later, animate from the current position to 200
-    //animator.animateTo(animator.getCurrentValue(), 200, updateValue);
-
-    stop.addEventListener('click', function(e){
-      console.log('stopped')
-      animator.stop()
-    })
-
-    again.addEventListener('click', function(e){
-      if (wentLeft){
-        animator.animateTo(500, 0, -150, updateValue);
-      }else{
-        animator.animateTo(0, 500, 250, updateValue);
-      }
-      wentLeft = !wentLeft;
-    })
-
-
-  </script>
 
 </body>
 </html>
