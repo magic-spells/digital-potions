@@ -138,23 +138,34 @@ export default class TweenCalculator {
   }
 
   /**
-   * Extrapolate a single value beyond the keyframes.
-   * @param {*} start - The starting value.
-   * @param {*} end - The ending value.
-   * @param {number} factor - The extrapolation factor.
-   * @param {string} direction - 'above' or 'below' to indicate extrapolation direction.
-   * @returns {*} The extrapolated value.
-   */
-  extrapolateValue(start, end, factor, direction) {
-    if (direction === 'above') {
-      // Extrapolate above the last keyframe
-      return this.interpolateValue(end, end + (end - start) * factor, factor, true);
-    } else if (direction === 'below') {
-      // Extrapolate below the first keyframe
-      return this.interpolateValue(start, start + (start - end) * factor, factor, true);
-    }
-    return null;
+ * Extrapolate a single value beyond the keyframes.
+ * @param {*} start - The starting value.
+ * @param {*} end - The ending value.
+ * @param {number} factor - The extrapolation factor.
+ * @param {string} direction - 'above' or 'below' to indicate extrapolation direction.
+ * @returns {*} The extrapolated value.
+ */
+extrapolateValue(start, end, factor, direction) {
+  // Ensure that start and end are numbers or can be parsed to numbers
+  const startNum = parseFloat(start);
+  const endNum = parseFloat(end);
+
+  if (isNaN(startNum) || isNaN(endNum)) {
+    // console.warn(`Cannot extrapolate non-numeric values: start=${start}, end=${end}`);
+    return this.formatNumber(direction === 'above' ? end : start); // Fallback to end or start
   }
+
+  let extrapolatedValue;
+  if (direction === 'above') {
+    extrapolatedValue = endNum + (endNum - startNum) * factor;
+  } else if (direction === 'below') {
+    extrapolatedValue = startNum + (startNum - endNum) * factor;
+  } else {
+    extrapolatedValue = endNum; // Fallback
+  }
+
+  return this.formatNumber(extrapolatedValue);
+}
 
   /**
    * Extrapolate a transform string beyond the keyframes.
@@ -210,7 +221,6 @@ export default class TweenCalculator {
    * @returns {string} The formatted number as a string.
    */
   formatNumber(num) {
-    console.log('num', num)
     num = parseFloat(num)
     return parseFloat(num.toFixed(4)).toString();
   }

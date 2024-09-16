@@ -6,7 +6,7 @@ import PhysicsAnimator from '../../physics-animator/dist/physics-animator.min'
 
 
 
-const animator = new PhysicsAnimator({ attraction: 0.01, friction: 0.07});
+const animator = new PhysicsAnimator({ attraction: 0.01, friction: 0.05});
 
 
 const framesForward = [
@@ -72,17 +72,17 @@ const framesBack = [
    {
     percent: 0,
     styles: {
-      transform: 'translateX(900px) rotate(-720deg) scale(1.0)',
+      transform: 'translateX(400px)  translateY(400px) rotate(-720deg) scale(2.0)',
       backgroundColor: '#ff00ff',
-      borderWidth: '0px'
+      borderWidth: '10px'
     }
   },
   {
     percent: 100,
     styles: {
-      transform: 'translateX(0px) rotate(0deg) scale(1.0)',
-      backgroundColor: '#ff0000',
-      borderWidth: '10px'
+      transform: 'translateX(50px)  translateY(50px) rotate(0deg) scale(0.5)',
+      backgroundColor: '#f0f000',
+      borderWidth: '1px'
     }
   }
 ];
@@ -125,11 +125,8 @@ const go = document.getElementById('go')
 function updateView({ position, progress }) {
   // console.log('\nprogress', progress)
   const tweenStyles = tweenCalculator.calculateTween(progress);
-  console.log(`tweenStyles ${progress}`, tweenStyles)
+  // console.log(`tweenStyles ${progress}`, tweenStyles)
   applyTweenStyles(box, tweenStyles);
-
-  // box.style.transform = `translate3d(${position}px,${position}px,0) scale(${progress * 2})`;
-      
 }
 
 function applyTweenStyles(element, styles) {
@@ -140,12 +137,16 @@ function applyTweenStyles(element, styles) {
 
 
 go.addEventListener('click', function (argument) {
+  tweenCalculator.setKeyframes(framesForward2) 
   animator.animateTo(0, 500, 20, updateView)
-  .then(() => {
-    console.log('finished')
-    // tweenCalculator.setKeyframes(framesBack) 
-    // animator.animateTo(0, 500, 150, updateView);
-  });
+    .then(() => {
+      console.log('finished')
+      tweenCalculator.setKeyframes(framesBack) 
+      setTimeout(() => {
+        animator.animateTo(0, 500, 50, updateView);
+      }, 1000)
+      
+    });
 
 
 })
