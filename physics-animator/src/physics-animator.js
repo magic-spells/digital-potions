@@ -1,5 +1,5 @@
 
-import EventEmitter from '../../event-emitter/dp-event-emitter';
+// import EventEmitter from '../../event-emitter/dp-event-emitter';
 
 export default class PhysicsAnimator {
 
@@ -108,7 +108,10 @@ export default class PhysicsAnimator {
 		this.isAnimating = false;
 	}
 
-
+	/**
+	 * Sets the attraction value
+	 * @param {number} [attraction=0.026] - The attraction value for physics-based animation (0 < attraction < 1).
+	 */
 	setAttraction(attraction){
 		if (typeof attraction !== 'number' || attraction < 0 || attraction > 1) {
 			throw new Error('Attraction must be a number between 0 and 1.');
@@ -116,6 +119,10 @@ export default class PhysicsAnimator {
 		this.attraction = attraction;
 	}
 
+	/**
+	 * Sets the friction value
+	 * @param {number} [friction=0.28] - The friction value for physics-based animation (0 < friction < 1).
+	 */
 	setFriction(friction){
 		if (typeof friction !== 'number' || friction < 0 || friction > 1) {
 			throw new Error('Friction must be a number between 0 and 1.');
