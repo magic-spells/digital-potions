@@ -17,12 +17,14 @@
     body {
       padding: 0px; 
       margin: 0px;
+      background: #666;
     }
 
     #section {
       background: lightblue;
       height: 300px;
       width: 100%;
+      margin-bottom: 0px;
     }
 
     #box {
@@ -35,7 +37,7 @@
       border: 1px solid teal;
     }
 
-    #go {
+    .button {
       margin: 10px;
       padding: 16px 32px;
       background: #2a2a5a;
@@ -49,15 +51,31 @@
     }
 
     #panel {
+      position: fixed;
+      right: 0px;
+      top: 0px;
+      height: 100vh;
+      width: 480px;
+      background: #343441;
+      background: white;
+      max-width: 480px;
+      box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.2), 0px 3px 10px 0px rgba(0,0,0,0.2);
+    }
+
+    #panel-rounded {
       border-radius: 8px;
       position: fixed;
       right: 0px;
       top: 0px;
       height: calc(100svh - 20px);
       margin: 10px;
-      width: 33%;
+      width: 480px;
       background: #343441;
+      background: white;
+      max-width: 480px;
+      box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.2), 0px 3px 10px 0px rgba(0,0,0,0.2);
     }
+
 
 
   </style>
@@ -70,12 +88,20 @@
 
     <div id="box"></div>
 
-    <div id="panel"></div>
-   
+    
+    
   </section>
+  <div style="background: lightblue; padding: 20px;" >
+    <button class="button" id="go">Go</button>
+  </div>
 
+  <br/>
 
-  <button id="go">Go</button>
+ 
+  <button class="button" id="panel-in">In</button>
+  <button class="button" id="panel-out">Out</button>
+   
+  <div id="panel" style="transform: translateX(110%) scale(1); filter: blur(15px) opacity(1);"></div>
 
   <script src="./script.min.js"></script>
 

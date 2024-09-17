@@ -26,7 +26,7 @@ const framesForward = [
       backgroundColor: '#ff0000',
       borderWidth: '1px',
       borderRadius: '0px',
-      filter: 'blur(15px)'
+      filter: 'blur(10px)'
     }
   },
   {
@@ -115,8 +115,8 @@ const panelIn = [
    {
     percent: 0,
     styles: {
-      transform: 'scale(0.8)',
-      filter: 'blur(5px) opacity(0)'
+      transform: 'scale(0.9)',
+      filter: 'blur(15px) opacity(0)'
 
     }
   },
@@ -129,12 +129,60 @@ const panelIn = [
   }
 ];
 
-const panelAnimator = new PhysicsAnimator();
+const panelSlideIn = [
+   {
+    percent: 0,
+    styles: {
+      transform: 'translateX(100%) scale(1.0)',
+      filter: 'blur(15px) opacity(1.0)'
 
-const panel = document.getElementById('panel')
-const panelTween = new TweenCalculator(panelIn);
+    }
+  },
+  {
+    percent: 95,
+    styles: {
+      transform: 'translateX(5%) scale(1.0)',
+      filter: 'blur(0px) opacity(1)'
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'translateX(0%) scale(1.0)',
+      filter: 'blur(0px) opacity(1)'
+    }
+  }
+];
 
-console.log('panel', panel)
+
+
+const panelOut = [
+  {
+    percent: 0,
+    styles: {
+      transform: 'translateX(0%) scale(1)',
+      filter: 'blur(0px) opacity(1)'
+    }
+  },
+  {
+    percent: 100,
+    styles: {
+      transform: 'translateX(110%) scale(1.0)',
+      filter: 'blur(15px) opacity(1.0)'
+
+    }
+  }
+];
+
+
+// { attraction = 0.026, friction = 0.28 } 
+const panelAnimator = new PhysicsAnimator({attraction: 0.038 });
+
+const panel = document.getElementById('panel');
+const panelInButton = document.getElementById('panel-in');
+const panelOutButton = document.getElementById('panel-out');
+const panelTween = new TweenCalculator(panelSlideIn);
+
 
 function updatePanel ({ position, progress }) {
   const tweenStyles = panelTween.calculateTween(progress);
@@ -142,11 +190,22 @@ function updatePanel ({ position, progress }) {
   applyTweenStyles(panel, tweenStyles);
 }
 
-setTimeout(function(){
-  panelAnimator.animateTo(0, 500, 50, updatePanel)
-    .then(() => {
-      console.log('panel done')
-    })
-}, 1000)
+panelInButton.addEventListener('click', function (argument) {
+  panelTween.setKeyframes(panelSlideIn) 
+  panelAnimator.animateTo(0, 400, 40, updatePanel)
+});
+
+panelOutButton.addEventListener('click', function (argument) {
+  panelTween.setKeyframes(panelOut) 
+  panelAnimator.animateTo(0, 360, 60, updatePanel)
+});
+
+// setTimeout(function(){
+//   panelAnimator.animateTo(0, 500, 10, updatePanel)
+//     .then(() => {
+//       console.log('panel done')
+//       panelTween.setKeyframes(panelOut) 
+//     })
+// }, 1000)
 
 
