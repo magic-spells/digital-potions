@@ -1,0 +1,45 @@
+{
+	"name": "@magic-spells/focus-trap",
+	"version": "1.0.0",
+	"description": "A customizable focus trap Web Component for managing keyboard focus within a container.",
+	"author": "Cory Schulz",
+	"license": "MIT",
+	"type": "module",
+	"module": "dist/focus-trap.esm.js",
+	"main": "dist/focus-trap.min.js",
+	"unpkg": "dist/focus-trap.min.js",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"import": "./dist/focus-trap.esm.js",
+			"require": "./dist/focus-trap.min.js"
+		}
+	},
+	"scripts": {
+		"build": "rollup -c",
+		"lint": "eslint src/ rollup.config.mjs",
+		"format": "prettier --write .",
+		"prepublishOnly": "npm run build",
+		"serve": "rollup -c --watch"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"browserslist": [
+		"last 2 versions",
+		"not dead",
+		"not ie <= 11"
+	],
+	"devDependencies": {
+		"@rollup/plugin-node-resolve": "^15.2.3",
+		"@rollup/plugin-terser": "^0.4.4",
+		"eslint": "^8.0.0",
+		"prettier": "^3.3.3",
+		"rollup": "^3.0.0",
+		"rollup-plugin-copy": "^3.5.0",
+		"rollup-plugin-serve": "^1.1.1",
+		"globals": "^13.24.0",
+		"@eslint/js": "^8.57.0"
+	}
+}
