@@ -9,12 +9,32 @@
 	"main": "dist/focus-trap.min.js",
 	"unpkg": "dist/focus-trap.min.js",
 	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/magic-spells/digital-potions"
+	},
+	"homepage": "https://github.com/magic-spells/digital-potions#readme",
+	"bugs": {
+		"url": "https://github.com/magic-spells/digital-potions/issues"
+	},
+	"keywords": [
+		"focus-trap",
+		"web-components",
+		"accessibility",
+		"a11y",
+		"keyboard-navigation",
+		"custom-elements"
+	],
 	"exports": {
 		".": {
 			"import": "./dist/focus-trap.esm.js",
 			"require": "./dist/focus-trap.min.js"
 		}
 	},
+	"files": [
+		"dist/",
+		"src/"
+	],
 	"scripts": {
 		"build": "rollup -c",
 		"lint": "eslint src/ rollup.config.mjs",
